@@ -26,7 +26,7 @@ GUIテストはoffscreenで実行します。プレビューは`artifacts/gui.pn
 
 ## 実GPU・実モデルの検証
 
-READMEのモデル準備を済ませてから実行します。CPUのみのCIでは実行しません。
+[モデルのセットアップ](SETUP.md)を済ませてから実行します。CPUのみのCIでは実行しません。
 
 ```powershell
 .\uv.ps1 run python scripts/check_kokoro.py
@@ -41,7 +41,7 @@ READMEのモデル準備を済ませてから実行します。CPUのみのCIで
 
 `compare_*`、`report_*`、`review_tts_comparison.py`、`tts_comparison_worker.py`、`run_gpu_comparison.ps1`と比較用`prepare_*_comparison.py`はモデル選定時の実験用です。実験によって追加モデルや`artifacts/`内の先行結果が必要になります。通常起動には必要ありません。
 
-通常のモデル準備にはREADMEの`prepare_ollama_vulkan.py`、`prepare_gemma.py`、`setup_kokoro.ps1`を使います。`prepare_gemma.py`は比較スクリプト内のダウンロード関数を共用します。
+通常のモデル準備には[セットアップ手順](SETUP.md)にある`prepare_ollama_vulkan.py`、`prepare_gemma.py`、`setup_kokoro.ps1`を使います。`prepare_gemma.py`は比較スクリプト内のダウンロード関数を共用します。
 
 ## 公開対象
 
