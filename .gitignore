@@ -1,0 +1,30 @@
+# Environments, downloaded runtimes and caches
+.venv*/
+.tools/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+
+# Models, generated outputs and conversation data
+models/
+artifacts/
+logs/
+debug_audio/
+config.local.json
+
+# Credentials and machine-local settings
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

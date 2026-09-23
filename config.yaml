@@ -1,0 +1,49 @@
+audio:
+  sample_rate: 16000
+  max_recording_seconds: 120
+asr:
+  engine: faster-whisper
+  model: small
+  device: cpu
+  compute_type: int8
+translation:
+  engine: gemma4
+  model_path: models/translation/gemma4-e4b/gemma-4-E4B_q4_0-it.gguf
+  executable: .tools/ollama-v0.34.2-vulkan/lib/ollama/llama-server.exe
+  gpu_device: Vulkan1
+  gpu_layers: 8
+  context_size: 2048
+  timeout_seconds: 180
+  log_path: logs/gemma-runtime.log
+  ja_en_model: Helsinki-NLP/opus-mt-ja-en
+  en_ja_model: Helsinki-NLP/opus-tatoeba-en-ja
+tts:
+  engine: kokoro
+  model_path: models/kokoro-82m
+  python_executable: .venv-kokoro/Scripts/python.exe
+  device: cuda:0
+  dtype: float32
+  ja_speaker: jf_alpha
+  en_speaker: af_heart
+  max_new_tokens: 1024
+  timeout_seconds: 300
+  log_path: logs/kokoro-runtime.log
+  ja_engine: openjtalk
+  en_engine: piper
+  en_voice: en_US-lessac-medium
+application:
+  model_directory: models
+  save_logs: true
+  log_directory: logs
+debug:
+  save_recordings: false
+  recording_directory: debug_audio
+  verbose: false
+automatic:
+  threshold: 0.6
+  start_ms: 96
+  min_speech_ms: 256
+  silence_ms: 704
+  pre_roll_ms: 320
+  playback_guard_ms: 600
+  max_utterance_seconds: 20
