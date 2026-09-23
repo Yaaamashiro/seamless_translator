@@ -115,4 +115,4 @@ uv sync --locked
 
 ## ライセンス
 
-本リポジトリ独自のソースコードには、現時点でライセンスを指定していません。利用するエンジン・モデル・音声には、それぞれの配布元のライセンスが適用されます。[参照一覧](docs/REFERENCES.md)と[第三者ライセンス](THIRD_PARTY/Mei-voice-license.txt)を確認してください。
+本リポジトリ独自のソースコードは[MIT License](LICENSE)で公開しています。利用するエンジン・モデル・音声には、それぞれの配布元のライセンスが適用されます。[参照一覧](docs/REFERENCES.md)と[第三者ライセンス](THIRD_PARTY/Mei-voice-license.txt)を確認してください。
