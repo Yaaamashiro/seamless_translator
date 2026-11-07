@@ -1,56 +1,56 @@
 # Seamless Translator
 
-日本語と英語の対面会話を、音声で双方向に翻訳するWindowsアプリです。2人それぞれのマイクから発話を受け取り、翻訳した音声を相手側のスピーカーへ出力します。
+A Windows app for two-way Japanese–English voice translation in face-to-face conversations. Each participant uses a separate microphone, and translated speech plays through the other participant's speaker or headphones.
 
-**Windows 11 · 日本語 ⇄ English · ローカル推論**
+**Windows 11 · Japanese ⇄ English · Local inference**
 
-[セットアップ](#セットアップ) · [使い方](#使い方) · [設定](#設定) · [ドキュメント](#ドキュメント)
+[Setup](#setup) · [Usage](#usage) · [Configuration](#configuration) · [Documentation](#documentation)
 
-## 主な機能
+## Features
 
-- **ターン制の自動翻訳** — 発話の開始・終了を検出し、話し終わると自動で翻訳・読み上げ。
-- **手動録音** — ボタンまたはショートカットキーで録音を開始・停止。
-- **日英それぞれの入出力** — マイク2台・スピーカー2台を個別に選択し、設定を保存。
-- **認識結果・訳文の表示** — 会話内容と処理状態をGUIで確認。
-- **ローカル処理** — 音声認識・翻訳・音声合成をPC上で実行。会話音声を外部APIへ送信しません。
+- **Automatic turn-based translation** — Detects the start and end of speech, then translates and reads it aloud.
+- **Manual recording** — Starts and stops recording with a button or keyboard shortcut.
+- **Separate audio devices** — Supports two microphones and two output devices, with saved device selections.
+- **Transcripts and translations** — Displays recognized speech, translated text, and processing status in the GUI.
+- **Local processing** — Runs speech recognition, translation, and speech synthesis on your PC without sending conversation audio to external APIs.
 
-## 仕組み
+## How it works
 
-| 話す人 | 入力 | 翻訳 | 出力 |
+| Participant | Input | Translation | Output |
 |---|---|---|---|
-| 日本語話者（A） | マイクA | 日本語 → 英語 | スピーカーB |
-| 英語話者（B） | マイクB | 英語 → 日本語 | スピーカーA |
+| Japanese speaker (A) | Microphone A | Japanese → English | Speaker B |
+| English speaker (B) | Microphone B | English → Japanese | Speaker A |
 
-マイクごとに入力言語を固定し、先に発話を検知した側の翻訳を始めます。人物識別や言語の自動判定は行いません。
+Each microphone has a fixed input language. The first microphone to detect speech takes the current turn. The app does not identify speakers or automatically detect the input language.
 
-### 使用モデル
+### Models
 
-| 処理 | 既定のモデル・実装 | 実行先 |
+| Task | Default model or implementation | Execution |
 |---|---|---|
-| 発話検出 | Silero VAD | CPU |
-| 音声認識 | faster-whisper / Whisper small | CPU（int8） |
-| 翻訳 | Gemma 4 E4B IT（QAT Q4_0） | Vulkan GPU + CPU |
-| 音声合成 | Kokoro 82M v1.0 | NVIDIA GPU（CUDA） |
+| Voice activity detection | Silero VAD | CPU |
+| Speech recognition | faster-whisper / Whisper small | CPU (int8) |
+| Translation | Gemma 4 E4B IT (QAT Q4_0) | Vulkan GPU + CPU |
+| Speech synthesis | Kokoro 82M v1.0 | NVIDIA GPU (CUDA) |
 
-GUIにはPySide6、音声入出力にはsounddevice / PortAudioを使用しています。
+The GUI uses PySide6, and audio input/output uses sounddevice / PortAudio.
 
-## 動作環境
+## Requirements
 
-| 項目 | 条件 |
+| Component | Requirement |
 |---|---|
 | OS | Windows 11 |
 | Python | 3.13 |
-| ツール | Git、[uv](https://docs.astral.sh/uv/getting-started/installation/) |
-| GPU | CUDA・Vulkanを利用できるNVIDIA GPU |
-| オーディオ | マイク2台、スピーカーまたはヘッドホン2系統 |
+| Tools | Git and [uv](https://docs.astral.sh/uv/getting-started/installation/) |
+| GPU | NVIDIA GPU with CUDA and Vulkan support |
+| Audio | Two microphones and two speaker or headphone outputs |
 
-GTX1650（VRAM 4GB）で検証しています。付属のGPU設定はこの環境に合わせた値です。初回セットアップにはモデルをダウンロードするためのインターネット接続が必要です。
+Tested on a GTX1650 with 4 GB of VRAM. The included GPU settings are tuned for this environment. An internet connection is required to download models during initial setup.
 
-## セットアップ
+## Setup
 
-### 1. リポジトリを取得
+### 1. Clone the repository
 
-PowerShellで実行します。
+Run the following commands in PowerShell:
 
 ```powershell
 git clone https://github.com/Yaaamashiro/seamless_translator.git
@@ -58,61 +58,65 @@ cd seamless_translator
 uv sync --locked
 ```
 
-### 2. モデルを準備
+### 2. Prepare the models
 
-[モデルのセットアップ](docs/SETUP.md)に従って、Gemmaの実行環境・モデルとKokoroを準備します。同ページのGPU設定も確認してください。
+Follow the [model setup guide](docs/SETUP.md) to install the Gemma runtime and model, and set up Kokoro. Check the GPU configuration described in that guide as well.
 
-モデルや仮想環境はリポジトリに含まれません。Docker・WSL・外部APIキーは不要です。
+Models and virtual environments are not included in the repository. Docker, WSL, and external API keys are not required.
 
-### 3. アプリを起動
+### 3. Launch the app
 
 ```powershell
 .\uv.ps1 run speech-translator
 ```
 
-## 使い方
+## Usage
 
-1. **機器を選択** — 日本語話者をA、英語話者をBとして、マイクと出力先を選びます。
-2. **モデルを準備** — 「設定を保存して準備」を押し、準備完了を待ちます。
-3. **自動翻訳を開始** — 「自動翻訳を開始（ターン制）」を押します。
-4. **一人ずつ話す** — 約0.7秒の無音で発話を確定し、翻訳音声を再生します。次の発話は画面が「聞き取り中」に戻ってから始めます。
-5. **終了** — 「自動翻訳を停止」を押します。
+The GUI currently uses mainly Japanese labels. The steps below include the labels shown in the app.
 
-手動で録音する場合は、自動モードを停止して`Start A Recording` / `Start B Recording`を使用します。同じボタンで録音を停止できます。アプリにフォーカスがあるときは、キー`1`がA側、`2`がB側の録音開始・停止に対応します。
+1. **Select audio devices** — Assign the Japanese speaker to A and the English speaker to B, then choose each participant's microphone and output device.
+2. **Prepare the models** — Click **設定を保存して準備** (Save settings and prepare) and wait for initialization to finish.
+3. **Start automatic translation** — Click **自動翻訳を開始（ターン制）** (Start automatic translation, turn-based).
+4. **Speak one at a time** — After roughly 0.7 seconds of silence, the app finalizes the utterance and plays the translation. Wait until the status returns to **聞き取り中** (Listening) before speaking again.
+5. **Stop** — Click **自動翻訳を停止** (Stop automatic translation).
 
-## 設定
+For manual recording, stop automatic mode and use `Start A Recording` or `Start B Recording`. Click the same button again to stop recording. When the app has focus, keys `1` and `2` start or stop recording for A and B, respectively.
 
-モデルや音声、発話検出の設定は[`config.yaml`](config.yaml)を編集し、アプリを再起動すると反映されます。
+## Configuration
 
-| 設定 | 既定値・動作 |
+Edit [`config.yaml`](config.yaml) to change models, voices, or speech detection settings, then restart the app.
+
+| Setting | Default behavior |
 |---|---|
-| 発話終了の無音時間 | 約0.7秒 |
-| 再生後の入力除外時間 | 0.6秒 |
-| 自動モードの発話上限 | 20秒。超過した発話全体を破棄 |
-| 合成音声 | 日本語：`jf_alpha` / 英語：`af_heart` |
-| 機器の保存先 | `config.local.json` |
+| Silence required to end an utterance | Approximately 0.7 seconds |
+| Input exclusion period after playback | 0.6 seconds |
+| Maximum utterance in automatic mode | 20 seconds; the entire utterance is discarded if exceeded |
+| Voices | Japanese: `jf_alpha` / English: `af_heart` |
+| Saved device selections | `config.local.json` |
 
-**会話の原文・訳文は既定でログに保存されます。** 保存を止めるには`application.save_logs: false`を指定してください。通常会話の録音ファイルは既定では保存しません。
+**Source transcripts and translations are logged by default.** Set `application.save_logs: false` to disable logging. Audio recordings of normal conversations are not saved by default.
 
-設定項目、Qwen TTSへの切り替え、CLIでの機器指定は[設定・CLIリファレンス](docs/CONFIGURATION.md)と[モデルのセットアップ](docs/SETUP.md)を参照してください。
+For detailed settings, switching to Qwen TTS, and selecting devices through the CLI, see the [configuration and CLI reference](docs/CONFIGURATION.md) and the [model setup guide](docs/SETUP.md).
 
-## 現在の制限
+## Limitations
 
-- 一人ずつ交互に話す方式です。同時発話や、話している途中の逐次翻訳には対応していません。
-- 翻訳・再生中と再生終了後0.6秒間の入力は破棄します。この間の発話は翻訳されません。
-- 波形を使って再生音を除去するエコーキャンセル（AEC）は未実装です。両方のマイクが同じ声を拾うと、誤った側の発話として扱う場合があります。
-- 実モデルでの日英動作と模擬入力によるループ防止は確認済みです。2人・4機器での実会話と残響の受入確認は未完了です。
+- Participants must take turns. Simultaneous speech and streaming translation while someone is still speaking are not supported.
+- Input is discarded during translation and playback, and for 0.6 seconds after playback ends. Speech during these periods is not translated.
+- Acoustic echo cancellation (AEC) that removes playback audio from microphone input is not implemented. If both microphones pick up the same voice, the app may assign the turn to the wrong participant.
+- Japanese–English processing has been checked with real models, and feedback-loop prevention has been tested with simulated input. Acceptance testing with two people, four physical audio devices, and room reverberation is still pending.
 
-## ドキュメント
+## Documentation
 
-| ドキュメント | 内容 |
+The detailed guides below are currently written in Japanese.
+
+| Guide | Contents |
 |---|---|
-| [モデルのセットアップ](docs/SETUP.md) | ダウンロード、実行環境、GPU設定、代替TTS |
-| [設定・CLIリファレンス](docs/CONFIGURATION.md) | 発話検出、機器選択、コマンド、保存データ |
-| [開発ガイド](docs/DEVELOPMENT.md) | ソース構成、テスト、開発用スクリプト |
-| [検証記録](docs/VALIDATION.md) | 開発環境での測定結果と検証範囲 |
-| [エンジン・モデル参照](docs/REFERENCES.md) | 配布元と第三者ライセンス情報 |
+| [Model setup](docs/SETUP.md) | Downloads, runtimes, GPU settings, and alternative TTS engines |
+| [Configuration and CLI reference](docs/CONFIGURATION.md) | Speech detection, device selection, commands, and stored data |
+| [Development guide](docs/DEVELOPMENT.md) | Source layout, tests, and development scripts |
+| [Validation notes](docs/VALIDATION.md) | Measurements and verification scope in the development environment |
+| [Engine and model references](docs/REFERENCES.md) | Upstream sources and third-party license information |
 
-## ライセンス
+## License
 
-本リポジトリ独自のソースコードは[MIT License](LICENSE)で公開しています。利用するエンジン・モデル・音声には、それぞれの配布元のライセンスが適用されます。[参照一覧](docs/REFERENCES.md)と[第三者ライセンス](THIRD_PARTY/Mei-voice-license.txt)を確認してください。
+The original source code in this repository is licensed under the [MIT License](LICENSE). Third-party engines, models, and voices are subject to their respective licenses. See the [references](docs/REFERENCES.md) and the [third-party license notice](THIRD_PARTY/Mei-voice-license.txt).
