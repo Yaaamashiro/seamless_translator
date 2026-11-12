@@ -107,8 +107,6 @@ For detailed settings, switching to Qwen TTS, and selecting devices through the 
 
 ## Documentation
 
-The detailed guides below are currently written in Japanese.
-
 | Guide | Contents |
 |---|---|
 | [Model setup](docs/SETUP.md) | Downloads, runtimes, GPU settings, and alternative TTS engines |

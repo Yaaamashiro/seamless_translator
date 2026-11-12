@@ -1,34 +1,34 @@
-# 設定・CLIリファレンス
+# Configuration and CLI Reference
 
-[READMEへ戻る](../README.md)
+[Back to README](../README.md)
 
-## 自動翻訳
+## Automatic translation
 
-マイクAは日本語、マイクBは英語として固定します。先に発話を検知したマイクがそのターンを取得します。人物識別や入力言語の自動判定は行いません。相手の声を両方のマイクが拾う場合は誤った側が選ばれるため、マイクの配置・距離・入力レベルを調整してください。
+Microphone A is assigned to Japanese and microphone B to English. The first microphone on which speech is detected takes the turn. The app does not identify speakers or detect the input language. If both microphones pick up the same speaker, the app may choose the wrong direction. Adjust microphone placement, distance, and input levels to reduce this.
 
-faster-whisperに同梱されたSilero VADをCPUで動かして発話を検出します。単なる音量閾値ではありません。約0.7秒の無音で発話を確定し、認識→翻訳→合成→再生を行います。翻訳・再生中と再生終了後0.6秒間は両マイクの入力を破棄し、その後に新しい発話を受け付けます。この間に話した内容は次のターンへ持ち越しません。画面の「聞き取り中」を待って話してください。
+The app uses the Silero voice activity detector (VAD) bundled with faster-whisper. It runs on the CPU and distinguishes speech from other sounds rather than relying on volume alone. After about 0.7 seconds of silence, the app recognizes, translates, synthesizes, and plays back the utterance. It discards input from both microphones during translation and playback and for 0.6 seconds after playback ends. Speech during this period is not queued for the next turn. Wait until the app shows **聞き取り中** (Listening) before speaking.
 
-これは再生タイミングを使ったループ防止です。音声波形を照合・除去するAECは未実装で、長い残響を保証して除去するものではありません。同時発話には対応しません。自動モード開始から停止まで両方の入力ストリームを開き、停止時に閉じます。
+This timing guard helps prevent feedback loops. The app does not use acoustic echo cancellation (AEC) to match and remove playback audio, so long reverberation can still be picked up. Automatic mode handles one speaker at a time. It opens both input streams when started and closes them when stopped.
 
-`config.yaml`の`automatic`で調整できます。
+Adjust these values under `automatic` in [`config.yaml`](../config.yaml):
 
-| 設定 | 既定値 | 意味 |
+| Setting | Default | Description |
 |---|---:|---|
-| threshold | 0.6 | VADの発話確率閾値 |
-| start_ms | 96 | 発話開始に必要な連続検出時間 |
-| min_speech_ms | 256 | 翻訳対象とする最小発話時間 |
-| silence_ms | 704 | 発話終了とする無音時間 |
-| pre_roll_ms | 320 | 語頭を残すための先行バッファ |
-| playback_guard_ms | 600 | 再生終了後の入力除外時間 |
-| max_utterance_seconds | 20 | 発話上限。超過した発話全体を破棄し、無音を待って再開 |
+| `threshold` | 0.6 | VAD speech probability threshold |
+| `start_ms` | 96 | Consecutive speech detection required to start a turn, in milliseconds |
+| `min_speech_ms` | 256 | Minimum speech duration to translate, in milliseconds |
+| `silence_ms` | 704 | Silence required to end an utterance, in milliseconds |
+| `pre_roll_ms` | 320 | Audio buffered before detection to preserve the start of the utterance, in milliseconds |
+| `playback_guard_ms` | 600 | Period after playback during which input is ignored, in milliseconds |
+| `max_utterance_seconds` | 20 | Utterance limit in seconds. If exceeded, the app discards the entire utterance and waits for silence before listening again. |
 
-自動モード中は手動録音と機器変更を無効にします。停止後は手動録音へ戻れます。
+Manual recording and device changes are disabled while automatic mode is active. Stop automatic mode to use manual recording again.
 
-## 機器設定とルーティング
+## Device selection and routing
 
-選択は`config.local.json`に番号・名前・ホストAPIを保存します。次回起動時は名前とホストAPIが一意に一致した機器を復元します。
-再接続で番号が変わった場合も名前で照合し、見つからない場合・同名機器が複数ある場合は再選択が必要です。
-GUI起動時の選択値を引数で指定することもできます。番号は例なので、現在の一覧で確認してください。
+The app stores each selected device's index, name, and host API in `config.local.json`. On startup, it restores devices by matching their names and host APIs, even if their indices have changed. Select a device again if there is no match or more than one match.
+
+You can also select devices when launching the GUI. The indices below are examples; use the current device list to find yours.
 
 ```powershell
 .\uv.ps1 run speech-translator --list-devices
@@ -36,83 +36,80 @@ GUI起動時の選択値を引数で指定することもできます。番号�
 .\uv.ps1 run speech-translator --configure
 ```
 
-`--configure`はCLIの対話選択です。保存値をEnterで再利用でき、省略した役割だけ対話入力します。
-`--config <path>`で機器設定の保存先、`--settings <path>`でモデル設定YAMLを変更できます。
-同じ機器がMME、DirectSound、WASAPI、WDM-KSに重複表示されることがあります。WASAPIを一覧の先頭に表示しています。
-同一番号のA/B割り当ては拒否しますが、別APIが同じ物理機器を指すかは自動判定できません。
-Windowsの既定機器を指すSound Mapperや仮想入力を、別の物理機器として数えないでください。
-USBを抜き差しして再取得でも反映されない場合はアプリを再起動してください。
+`--configure` prompts for roles omitted on the command line. Press Enter to reuse a saved selection. Use `--config <path>` to change where device selections are saved, and `--settings <path>` to select a different YAML settings file.
 
-## CLIでの動作確認
+A device can appear more than once under MME, DirectSound, WASAPI, or WDM-KS. The list shows WASAPI entries first. The app rejects assigning the same device index to both participants, but it cannot tell whether entries under different APIs refer to the same hardware. Do not count Sound Mapper, which follows the Windows default device, or a virtual input as a separate physical device. If reconnecting a USB device and refreshing the list does not show it, restart the app.
 
-以下の番号は例です。`--list-devices`で確認して置き換えてください。
-録音テストはEnterで開始、もう一度Enterで停止します。テストで指定したWAVは保存されます。
+## CLI checks
+
+Replace the example device indices below with values from `--list-devices`. For recording tests, press Enter to start, then Enter again to stop. The app saves the WAV files specified in the commands.
 
 ```powershell
-# Step 1–2: 環境・列挙
+# Steps 1–2: Check Python and list devices
 .\uv.ps1 run python --version
 .\uv.ps1 run python -m speech_translator.main --list-devices --json
 
-# Step 3: A/Bの録音を個別確認
+# Step 3: Test each microphone separately
 .\uv.ps1 run speech-translator --test-record --input 25 --output-wav debug_audio/A.wav
 .\uv.ps1 run speech-translator --test-record --input 26 --output-wav debug_audio/B.wav
 
-# Step 4: 指定スピーカーへの再生
+# Step 4: Play a recording through the selected output
 .\uv.ps1 run speech-translator --test-play debug_audio/A.wav --output 20
 .\uv.ps1 run speech-translator --test-play debug_audio/B.wav --output 23
 
-# Step 5: 機器選択→録音→相手側への原音再生
+# Step 5: Select devices, record, and play the original audio to the other participant
 .\uv.ps1 run speech-translator --cross-route A
 .\uv.ps1 run speech-translator --cross-route B
 
-# Step 6: WAVからASR
+# Step 6: Transcribe a WAV file
 .\uv.ps1 run speech-translator --asr debug_audio/A.wav --language ja
 .\uv.ps1 run speech-translator --asr debug_audio/B.wav --language en
 
-# Step 7: テキスト翻訳
+# Step 7: Translate text
 .\uv.ps1 run speech-translator --translate 'こんにちは。今日は沖縄から来ました。' --source-language ja
 .\uv.ps1 run speech-translator --translate 'Nice to meet you.' --source-language en
 
-# Step 8: 音声合成
+# Step 8: Synthesize speech
 .\uv.ps1 run speech-translator --tts 'Hello.' --language en --output-wav debug_audio/en.wav
 .\uv.ps1 run speech-translator --tts 'はじめまして。' --language ja --output-wav debug_audio/ja.wav
 
-# Step 9: WAVから翻訳音声を指定機器へ再生
+# Step 9: Translate a WAV file and play the result through the selected output
 .\uv.ps1 run speech-translator --pipeline debug_audio/A.wav --direction A --output 20
 .\uv.ps1 run speech-translator --pipeline debug_audio/B.wav --direction B --output 23
 
-# CLIで交互会話 / 全モデルの準備確認 / GUI
+# Run a turn-based conversation in the CLI, check model loading, or launch the GUI
 .\uv.ps1 run speech-translator --cli
 .\uv.ps1 run speech-translator --check-models
 .\uv.ps1 run speech-translator --gui
 ```
 
-## モデル・音声設定
+## Models and voices
 
-`config.yaml`を編集してアプリを再起動します。GUIとCLIは同じ設定を使います。
+Edit [`config.yaml`](../config.yaml) and restart the app to apply changes. The GUI and CLI use the same settings.
 
-| モジュール | 既定実装 |
+| Component | Default |
 |---|---|
-| ASR | faster-whisper small、CPU / int8 |
-| 日英翻訳 | Gemma 4 E4B IT / 公式QAT Q4_0 GGUF、Vulkan GPU＋CPU |
-| 日英TTS | Kokoro 82M v1.0、CUDA / FP32 |
-| 日本語の声 | jf_alpha |
-| 英語の声 | af_heart |
-| Audio I/O / GUI | sounddevice / PortAudio、PySide6 |
+| Speech recognition | faster-whisper small, CPU / int8 |
+| Japanese–English translation | Gemma 4 E4B IT, official QAT Q4_0 GGUF, Vulkan GPU + CPU |
+| Japanese and English speech synthesis | Kokoro 82M v1.0, CUDA / FP32 |
+| Japanese voice | `jf_alpha` |
+| English voice | `af_heart` |
+| Audio I/O and GUI | sounddevice / PortAudio and PySide6 |
 
-`translation.engine: gemma4`、`tts.engine: kokoro`が既定です。
-GemmaのGPU配置は8/43層、GPUは`Vulkan1`（このPCのGTX1650）です。Kokoroの合成演算は`cuda:0`を使用し、CPUへの自動切替は行いません。
-日本語はOpen JTalkで数字・助数詞を文脈に応じた読みにしてからKokoroへ渡します。特定の単語や「2階」だけを個別置換する処理は入れていません。全ての固有名詞や数値表現の読みを保証するものではありません。
-音声生成時に510文字を超える発音列は明示的に拒否します。長い発話は区切って話してください。
-`tts.ja_speaker` / `tts.en_speaker`で声を指定できますが、対応する音声ファイルを`models/kokoro-82m/voices/`へ用意する必要があります。
+The default engines are `translation.engine: gemma4` and `tts.engine: kokoro`. The configuration offloads 8 of Gemma's 43 layers to `Vulkan1`, the GTX 1650 on the test PC. Kokoro synthesizes speech on `cuda:0` and does not automatically fall back to CPU.
 
-## 保存されるもの
+For Japanese speech, Open JTalk determines how to read numbers and counters in context before passing the pronunciation to Kokoro. It does not replace specific words or hard-code the reading of `2階` (“second floor”). Readings of proper names and numbers can still be incorrect.
 
-- `config.local.json`: 実行時の機器選択。
-- `models/`: ASR・Gemma・Kokoroなどのモデル。
-- `logs/session_*.jsonl`: 方向、機器番号、原文、訳文、発話長、各処理時間、エラー。`application.save_logs: false`で無効化。
-- `debug_audio/`: `debug.save_recordings: true`のときのみ通常会話の録音を保存。既定は保存しません。CLIで明示したWAV出力は別です。
-- `artifacts/`: 開発時の合成音声・実モデル試験結果・GUI画像。マイク録音ではありません。
+Speech synthesis rejects phoneme sequences longer than 510 characters. Break long utterances into shorter turns. Set `tts.ja_speaker` and `tts.en_speaker` to choose voices, and place the corresponding voice files in `models/kokoro-82m/voices/`.
 
-`total_latency_sec`は手動の録音停止操作、またはVADによる発話終了確定から出力ストリーム開始までの時間です。自動モードの無音確定待ち時間は含みません。音が耳に届くまでのデバイス遅延は含めません。
-ログや録音のパスは設定YAMLのディレクトリを基準に解決します。
+## Stored files
+
+- `config.local.json`: Saved device selections.
+- `models/`: Model files for speech recognition, Gemma, Kokoro, and other engines.
+- `logs/session_*.jsonl`: Translation direction, device indices, transcripts, translations, utterance lengths, processing times, and errors. Set `application.save_logs: false` to disable session logs.
+- `debug_audio/`: Normal conversation audio is saved only when `debug.save_recordings: true`. This setting is off by default and does not affect WAV files explicitly requested through the CLI.
+- `artifacts/`: Synthesized audio, model test results, and GUI screenshots from development checks.
+
+`total_latency_sec` measures the time from stopping a manual recording or from the VAD finalizing an utterance to the start of the output stream. It excludes the automatic mode's wait for silence and the audio device's playback latency.
+
+Log and recording paths are resolved relative to the directory containing the settings YAML file.

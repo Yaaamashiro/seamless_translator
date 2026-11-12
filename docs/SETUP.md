@@ -1,12 +1,12 @@
-# モデルのセットアップ
+# Model Setup
 
-[READMEへ戻る](../README.md)
+[Back to README](../README.md)
 
-WindowsのPowerShellで、リポジトリ直下から実行してください。事前に`uv sync --locked`でメイン環境を作成します。初回はインターネット接続が必要です。
+Run these commands in PowerShell from the repository root. First run `uv sync --locked` to create the main Python environment. Initial setup requires an internet connection.
 
-## Gemma / Kokoro
+## Gemma and Kokoro
 
-メイン環境の`uv sync --locked`実行後、プロジェクト直下で実行します。
+Download the Vulkan runtime, verify the signatures of the downloaded executables and libraries, then prepare the models and launch the app:
 
 ```powershell
 .\uv.ps1 run python scripts/prepare_ollama_vulkan.py
@@ -15,7 +15,7 @@ Get-ChildItem .tools/ollama-v0.34.2-vulkan -Recurse -File |
   ForEach-Object {
     $signature = Get-AuthenticodeSignature -LiteralPath $_.FullName
     if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'Ollama') {
-      throw "ランタイムの署名検証失敗: $($_.FullName)"
+      throw "Runtime signature verification failed: $($_.FullName)"
     }
   }
 .\uv.ps1 run python scripts/prepare_gemma.py
@@ -23,28 +23,29 @@ Get-ChildItem .tools/ollama-v0.34.2-vulkan -Recurse -File |
 .\uv.ps1 run speech-translator
 ```
 
-Gemmaは公式Ollama配布物内の署名済みVulkanランタイムを直接起動します。Ollamaサービスの起動は不要です。
-Kokoroは`.venv-kokoro`へ分離し、`requirements-kokoro.lock`で依存バージョンを固定しています。
-Windows/Python3.13との互換性のため、セットアップ時にmisaki 0.9.4の文字幅変換2箇所をjaconvの同等処理へ置き換えます。
-モデルは固定リビジョンから取得し、重みのSHA256を確認します。モデル準備後の推論はローカルです。
-準備時に日英の短い音声で初期化するため、最初の会話時に初回GPU初期化待ちが集中しないようにしています。
-アプリ終了時は翻訳サーバーとTTSワーカーを解放します。Windowsのセキュリティ設定は変更しません。
+The app runs Gemma directly using the signed Vulkan runtime from the official Ollama distribution. You do not need to start an Ollama service.
 
-Qwenを使用する場合は、`setup_qwen.ps1`で準備し、`--settings config.qwen.yaml`を指定します。
-従来構成は`translation.engine: opus`、`tts.engine: legacy`で選べます。
+Kokoro runs in `.venv-kokoro`, with dependencies pinned in `requirements-kokoro.lock`. For Windows and Python 3.13 compatibility, the setup script replaces two character width conversions in misaki 0.9.4 with equivalent jaconv calls.
 
-録音はデバイスの標準レート・対応チャンネル数で取得し、mono / float32へ変換します。
-ASR入力前にリサンプリングし、Whisperへは16000 Hzで渡します。出力も指定デバイスの標準レートへ変換します。
-手動録音は既定で120秒を上限とし、上限超過はエラーにします。長文は翻訳モデルの入力上限で明示的に拒否し、黙って切り捨てません。
-無音・空文字・モデル失敗・録音/再生失敗はERRORとして表示し、次の録音で再試行できます。
+The setup scripts download pinned model revisions and verify the SHA-256 hashes of the weights. Inference runs locally after setup. The app warms up both speech directions during initialization to reduce the wait on the first turn. It shuts down the translation server and speech synthesis worker when it exits. Setup does not change Windows security settings.
 
-## GPUの設定
+## GPU settings
 
-`config.yaml`の`translation.gpu_device: Vulkan1`は検証PCのGTX1650を指します。GPUの列挙順は環境により異なるため、使用するGPUに合わせて変更してください。`translation.gpu_layers: 8`も検証環境向けの値です。Kokoroは`tts.device: cuda:0`を使用します。
+`translation.gpu_device: Vulkan1` in [`config.yaml`](../config.yaml) selects the GTX 1650 on the test PC. GPU enumeration differs between systems, so change the setting to match the device you want to use. The default `translation.gpu_layers: 8` is also tuned for the test PC. Kokoro uses `tts.device: cuda:0`.
 
-## オフライン起動
+## Alternative engines
 
-モデルの取得と初回準備を済ませた後は、次のように起動できます。
+To use Qwen TTS, run `setup_qwen.ps1` and launch with `--settings config.qwen.yaml`. To use the earlier configuration, set `translation.engine: opus` and `tts.engine: legacy`.
+
+## Audio processing and limits
+
+The app records at the device's default sample rate and supported channel count, then converts the audio to mono float32. It resamples recognition input to 16 kHz and playback audio to the selected output device's default sample rate.
+
+Manual recordings default to a 120-second limit. Recordings that exceed the limit and text that exceeds the translation model's input limit are rejected rather than silently truncated. Silence, empty text, model errors, and recording or playback failures are shown as `ERROR`. Start another recording to retry.
+
+## Offline launch
+
+After downloading and preparing the models, you can launch offline:
 
 ```powershell
 $env:HF_HUB_OFFLINE = '1'

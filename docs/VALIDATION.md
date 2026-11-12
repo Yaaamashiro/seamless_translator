@@ -1,8 +1,8 @@
-# 開発時の検証記録
+# Validation Notes
 
-[READMEへ戻る](../README.md) · [検証手順](DEVELOPMENT.md)
+[Back to README](../README.md) · [Development Guide](DEVELOPMENT.md)
 
-以下は開発環境での測定記録です。性能保証ではありません。参照する`artifacts/`内のファイルはローカル生成物で、リポジトリには含めていません。コマンドはリポジトリ直下から実行します。
+These measurements describe the development environment and are not performance guarantees. Files under `artifacts/` are generated locally and are not included in the repository. Run these commands from the repository root:
 
 ```powershell
 .\uv.ps1 run python -m unittest discover -s tests -v
@@ -10,29 +10,42 @@
 .\uv.ps1 run python scripts/check_automatic.py
 ```
 
-自動テスト46件成功。翻訳未完了・不正音声・ワーカータイムアウト・起動失敗時の解放も確認しています。バッファ分離、入出力ルーティング、再サンプリング、無音・エラー復帰、GUI制御と機器保存を確認しています。
-現在のGemma / Kokoro構成で、実GPUを使う翻訳→音声生成→生成音声のASR確認を実施しました。
+## Automated tests
 
-| 方向 | 翻訳結果 | 翻訳 | 音声生成 |
+All 46 tests passed in the recorded run. Coverage includes input buffer isolation, audio routing, resampling, silence handling, error recovery, GUI controls, and saved device selections. The tests also cover incomplete translations, invalid audio, worker timeouts, and cleanup after startup failures.
+
+## Gemma and Kokoro
+
+The GPU check translated two short sentences, synthesized the translated speech, and transcribed the generated audio to check it.
+
+| Direction | Translation | Translation time | Synthesis time |
 |---|---|---:|---:|
-| 日→英 | Where is the station? | 1.06秒 | 0.14秒 |
-| 英→日 | 明日の午後3時に2階の受付で会いましょう。 | 4.09秒 | 0.44秒 |
+| Japanese → English | Where is the station? | 1.06 s | 0.14 s |
+| English → Japanese | 明日の午後3時に2階の受付で会いましょう。 (“Let's meet at the reception desk on the second floor tomorrow at 3 p.m.”) | 4.09 s | 0.44 s |
 
-準備は約19.5秒でした。数字の例は発音「にかい」を確認し、ASRでは同音の「2回」と表記されました。
-実測値と生成WAVは`artifacts/kokoro-check/`にあります。短文2件の確認であり、全表現の読みや長時間の安定性を保証するものではありません。
-切替前のQwenとのGPU比較は`artifacts/tts-comparison/RESULTS.md`に保存しています。比較時のKokoroには今回の日本語読み修正が入っていません。
+Initialization took about 19.5 seconds. The Japanese audio correctly pronounced `2階` (“second floor”) as *nikai*. Speech recognition transcribed it as the homophone `2回` (“twice”).
 
-以下は従来のOPUS / Open JTalk / Piper構成の記録です（Gemma / Qwenの速度ではありません）。TTSで作った例文音声をASR→翻訳→TTSへ渡し、次の結果を得ました。
+Measurements and generated WAV files are in `artifacts/kokoro-check/`. This check does not establish long-run stability or correct pronunciation for all expressions. The earlier GPU comparison with Qwen is recorded in `artifacts/tts-comparison/RESULTS.md`. The Kokoro configuration used in that comparison predates the Japanese pronunciation fix.
 
-| 方向 | 認識 | 翻訳 | 処理時間の例 |
+## Earlier OPUS, Open JTalk, and Piper configuration
+
+This check used synthesized examples as inputs to the recognition, translation, and synthesis pipeline. These timings do not describe Gemma or Qwen performance.
+
+| Direction | Transcript | Translation | Example processing time |
 |---|---|---|---:|
-| A→B | こんにちは。今日は沖縄から来ました。 | Hi. I'm from Okinawa today. | 約3.5秒 |
-| B→A | Nice to meet you. | 初めまして | 約2.9秒 |
+| A → B | こんにちは。今日は沖縄から来ました。 | Hi. I'm from Okinawa today. | About 3.5 s |
+| B → A | Nice to meet you. | 初めまして | About 2.9 s |
 
-この時間はファイル出力までの合成音声テストです。物理スピーカーのレイテンシ測定ではありません。
-詳細は`artifacts/model-check/results.json`、合成結果は同じフォルダーの`A_translated.wav` / `B_translated.wav`にあります。
-実機では入力25・26の取得と出力20・23への小音量テスト音の書き込みが通りましたが、入力はいずれも無音でした。
-実モデルをGUIから準備する試験でも録音可能状態に到達しました。準備は約21秒で、その間もGUIイベントを処理しました。
-初回のライブラリ初期化には最大約2.5秒のPythonイベント間隔が見られたため、準備開始直後に操作が遅れる場合があります。
-**2人の実発話・4機器での聞き取り・交互会話の受入確認は未完了です。** 使用機器を選択し、上の録音/再生CLIから順に確認してください。
-自動モードは実Silero VAD・ASR・Gemma・Kokoroを使い、日英各1ターンを確認しました。再生音声を両マイクの模擬コールバックへ戻しても追加の翻訳が起きないことを確認しています。記録は`artifacts/automatic-check/results.json`です。物理的なマイク・スピーカーの残響試験は未実施です。AEC、逐次翻訳、同時発話は未対応です。
+The timings end at file output and do not measure physical speaker latency. See `artifacts/model-check/results.json` and the corresponding `A_translated.wav` and `B_translated.wav` files.
+
+## Device and GUI checks
+
+The hardware check opened inputs 25 and 26 and wrote a low-volume test tone to outputs 20 and 23. Both inputs returned silence. In a separate GUI check, the models loaded and the app reached the ready-to-record state in about 21 seconds. The GUI continued to process events, though a gap of up to about 2.5 seconds between Python events during initial library loading could briefly delay interaction.
+
+**Acceptance testing with two people taking turns on four physical audio devices is still pending.** Select the devices, then use the [recording and playback CLI checks](CONFIGURATION.md#cli-checks) to verify them.
+
+## Automatic mode
+
+The automatic check ran one turn in each language using the actual Silero VAD, speech recognition, Gemma, and Kokoro. Feeding the synthesized playback audio into both simulated microphone callbacks did not trigger an extra translation. Results are in `artifacts/automatic-check/results.json`.
+
+Room reverberation has not been tested with physical microphones and speakers. Acoustic echo cancellation, streaming translation within an utterance, and simultaneous speech are not supported.
